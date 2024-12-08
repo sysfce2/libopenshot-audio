@@ -33,11 +33,9 @@ public:
     {
         jassert (newIntervalMs > 0);
 
-        const auto callback = [] (UINT, UINT, DWORD_PTR context, DWORD_PTR, DWORD_PTR) -> void __stdcall
+        const auto callback = [] (UINT, UINT, DWORD_PTR context, DWORD_PTR, DWORD_PTR)
         {
-            auto* listener = reinterpret_cast<PlatformTimerListener*> (context);
-            if (listener != nullptr)
-                listener->handleTimerCallback();
+            reinterpret_cast<PlatformTimerListener*> (context)->onTimerExpired();
         };
 
         timerId = timeSetEvent ((UINT) newIntervalMs, 1, callback, (DWORD_PTR) &listener, TIME_PERIODIC | TIME_CALLBACK_FUNCTION);
