@@ -39,37 +39,7 @@ public:
         };
 
         timerId = timeSetEvent ((UINT) newIntervalMs, 1, callback, (DWORD_PTR) &listener, TIME_PERIODIC | TIME_CALLBACK_FUNCTION);
-        const auto timerStarted = timerId != 0;
-
-        if (timerStarted)
-        {
-            intervalMs = newIntervalMs;
-            return;
-        }
-
-        if (fallbackTimer == nullptr)
-        {
-            // This assertion indicates that the creation of a high-resolution timer
-            // failed, and the timer is falling back to a less accurate implementation.
-            // Timer callbacks will still fire but the timing precision of the callbacks
-            // will be significantly compromised!
-            // The most likely reason for this is that more than the system limit of 16
-            // HighResolutionTimers are trying to run simultaneously in the same process.
-            // You may be able to reduce the number of HighResolutionTimer instances by
-            // only creating one instance that is shared (see SharedResourcePointer).
-            //
-            // However, if this is a plugin running inside a host, other plugins could
-            // be creating timers in the same process. In most cases it's best to find
-            // an alternative approach than relying on the precision of any timer!
-           #if ! JUCE_UNIT_TESTS
-            jassertfalse;
-           #endif
-
-            fallbackTimer = std::make_unique<GenericPlatformTimer> (listener);
-        }
-
-        fallbackTimer->startTimer (newIntervalMs);
-        intervalMs = fallbackTimer->getIntervalMs();
+        intervalMs = timerId != 0 ? newIntervalMs : 0;
     }
 
     void cancelTimer()
