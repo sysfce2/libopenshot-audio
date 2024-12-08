@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2022 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -23,6 +23,87 @@
 namespace juce
 {
 
+class MidiDeviceListConnectionBroadcaster final : private AsyncUpdater
+{
+public:
+    ~MidiDeviceListConnectionBroadcaster() override
+    {
+        cancelPendingUpdate();
+    }
+
+    MidiDeviceListConnection::Key add (std::function<void()> callback)
+    {
+        JUCE_ASSERT_MESSAGE_THREAD
+        return callbacks.emplace (key++, std::move (callback)).first->first;
+    }
+
+    void remove (const MidiDeviceListConnection::Key k)
+    {
+        JUCE_ASSERT_MESSAGE_THREAD
+        callbacks.erase (k);
+    }
+
+    void notify()
+    {
+        if (MessageManager::getInstance()->isThisTheMessageThread())
+        {
+            cancelPendingUpdate();
+
+            const State newState;
+
+            if (std::exchange (lastNotifiedState, newState) != newState)
+                for (auto it = callbacks.begin(); it != callbacks.end();)
+                    NullCheckedInvocation::invoke ((it++)->second);
+        }
+        else
+        {
+            triggerAsyncUpdate();
+        }
+    }
+
+    static auto& get()
+    {
+        static MidiDeviceListConnectionBroadcaster result;
+        return result;
+    }
+
+private:
+    MidiDeviceListConnectionBroadcaster() = default;
+
+    class State
+    {
+        Array<MidiDeviceInfo> ins = MidiInput::getAvailableDevices(), outs = MidiOutput::getAvailableDevices();
+        auto tie() const { return std::tie (ins, outs); }
+
+    public:
+        bool operator== (const State& other) const { return tie() == other.tie(); }
+        bool operator!= (const State& other) const { return tie() != other.tie(); }
+    };
+
+    void handleAsyncUpdate() override
+    {
+        notify();
+    }
+
+    std::map<MidiDeviceListConnection::Key, std::function<void()>> callbacks;
+    State lastNotifiedState;
+    MidiDeviceListConnection::Key key = 0;
+};
+
+//==============================================================================
+MidiDeviceListConnection::~MidiDeviceListConnection() noexcept
+{
+    if (broadcaster != nullptr)
+        broadcaster->remove (key);
+}
+
+//==============================================================================
+void MidiInputCallback::handlePartialSysexMessage ([[maybe_unused]] MidiInput* source,
+                                                   [[maybe_unused]] const uint8* messageData,
+                                                   [[maybe_unused]] int numBytesSoFar,
+                                                   [[maybe_unused]] double timestamp) {}
+
+//==============================================================================
 MidiOutput::MidiOutput (const String& deviceName, const String& deviceIdentifier)
     : Thread ("midi out"), deviceInfo (deviceName, deviceIdentifier)
 {
@@ -30,12 +111,8 @@ MidiOutput::MidiOutput (const String& deviceName, const String& deviceIdentifier
 
 void MidiOutput::sendBlockOfMessagesNow (const MidiBuffer& buffer)
 {
-    MidiBuffer::Iterator i (buffer);
-    MidiMessage message;
-    int samplePosition; // Note: Not actually used, so no need to initialise.
-
-    while (i.getNextEvent (message, samplePosition))
-        sendMessageNow (message);
+    for (const auto metadata : buffer)
+        sendMessageNow (metadata.getMessage());
 }
 
 void MidiOutput::sendBlockOfMessages (const MidiBuffer& buffer,
@@ -50,13 +127,10 @@ void MidiOutput::sendBlockOfMessages (const MidiBuffer& buffer,
 
     auto timeScaleFactor = 1000.0 / samplesPerSecondForBuffer;
 
-    const uint8* data;
-    int len, time;
-
-    for (MidiBuffer::Iterator i (buffer); i.getNextEvent (data, len, time);)
+    for (const auto metadata : buffer)
     {
-        auto eventTime = millisecondCounterToStartAt + timeScaleFactor * time;
-        auto* m = new PendingMessage (data, len, eventTime);
+        auto eventTime = millisecondCounterToStartAt + timeScaleFactor * metadata.samplePosition;
+        auto* m = new PendingMessage (metadata.data, metadata.numBytes, eventTime);
 
         const ScopedLock sl (lock);
 
@@ -94,7 +168,7 @@ void MidiOutput::clearAllPendingMessages()
 
 void MidiOutput::startBackgroundThread()
 {
-    startThread (9);
+    startThread (Priority::high);
 }
 
 void MidiOutput::stopBackgroundThread()

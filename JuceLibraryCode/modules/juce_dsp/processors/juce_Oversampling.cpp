@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2022 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 7 End-User License
+   Agreement and JUCE Privacy Policy.
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-7-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -24,9 +23,7 @@
   ==============================================================================
 */
 
-namespace juce
-{
-namespace dsp
+namespace juce::dsp
 {
 
 /** Abstract class for the provided oversampling stages used internally in
@@ -39,7 +36,7 @@ struct Oversampling<SampleType>::OversamplingStage
     virtual ~OversamplingStage() {}
 
     //==============================================================================
-    virtual SampleType getLatencyInSamples() = 0;
+    virtual SampleType getLatencyInSamples() const = 0;
 
     virtual void initProcessing (size_t maximumNumberOfSamplesBeforeOversampling)
     {
@@ -71,14 +68,14 @@ struct Oversampling<SampleType>::OversamplingStage
     signal, which could be equivalent to a "one time" oversampling processing.
 */
 template <typename SampleType>
-struct OversamplingDummy   : public Oversampling<SampleType>::OversamplingStage
+struct OversamplingDummy final : public Oversampling<SampleType>::OversamplingStage
 {
     using ParentType = typename Oversampling<SampleType>::OversamplingStage;
 
     OversamplingDummy (size_t numChans) : ParentType (numChans, 1) {}
 
     //==============================================================================
-    SampleType getLatencyInSamples() override
+    SampleType getLatencyInSamples() const override
     {
         return 0;
     }
@@ -111,7 +108,7 @@ struct OversamplingDummy   : public Oversampling<SampleType>::OversamplingStage
     leading to specific processing optimizations.
 */
 template <typename SampleType>
-struct Oversampling2TimesEquirippleFIR  : public Oversampling<SampleType>::OversamplingStage
+struct Oversampling2TimesEquirippleFIR final : public Oversampling<SampleType>::OversamplingStage
 {
     using ParentType = typename Oversampling<SampleType>::OversamplingStage;
 
@@ -139,7 +136,7 @@ struct Oversampling2TimesEquirippleFIR  : public Oversampling<SampleType>::Overs
     }
 
     //==============================================================================
-    SampleType getLatencyInSamples() override
+    SampleType getLatencyInSamples() const override
     {
         return static_cast<SampleType> (coefficientsUp.getFilterOrder() + coefficientsDown.getFilterOrder()) * 0.5f;
     }
@@ -263,7 +260,7 @@ private:
     phase, and provided with a method to get the exact resulting latency.
 */
 template <typename SampleType>
-struct Oversampling2TimesPolyphaseIIR  : public Oversampling<SampleType>::OversamplingStage
+struct Oversampling2TimesPolyphaseIIR final : public Oversampling<SampleType>::OversamplingStage
 {
     using ParentType = typename Oversampling<SampleType>::OversamplingStage;
 
@@ -300,7 +297,7 @@ struct Oversampling2TimesPolyphaseIIR  : public Oversampling<SampleType>::Oversa
     }
 
     //==============================================================================
-    SampleType getLatencyInSamples() override
+    SampleType getLatencyInSamples() const override
     {
         return latency;
     }
@@ -364,8 +361,9 @@ struct Oversampling2TimesPolyphaseIIR  : public Oversampling<SampleType>::Oversa
             }
         }
 
-        // Snap To Zero
+       #if JUCE_DSP_ENABLE_SNAP_TO_ZERO
         snapToZero (true);
+       #endif
     }
 
     void processSamplesDown (AudioBlock<SampleType>& outputBlock) override
@@ -422,8 +420,9 @@ struct Oversampling2TimesPolyphaseIIR  : public Oversampling<SampleType>::Oversa
             delayDown.setUnchecked (static_cast<int> (channel), delay);
         }
 
-        // Snap To Zero
+       #if JUCE_DSP_ENABLE_SNAP_TO_ZERO
         snapToZero (false);
+       #endif
     }
 
     void snapToZero (bool snapUpProcessing)
@@ -506,10 +505,10 @@ private:
         coeffs.coefficients.clear();
         auto inversion = one / denominator[0];
 
-        for (auto i = 0; i <= numerator.getOrder(); ++i)
+        for (int i = 0; i <= numerator.getOrder(); ++i)
             coeffs.coefficients.add (numerator[i] * inversion);
 
-        for (auto i = 1; i <= denominator.getOrder(); ++i)
+        for (int i = 1; i <= denominator.getOrder(); ++i)
             coeffs.coefficients.add (denominator[i] * inversion);
 
         return coeffs;
@@ -539,8 +538,9 @@ Oversampling<SampleType>::Oversampling (size_t newNumChannels)
 
 template <typename SampleType>
 Oversampling<SampleType>::Oversampling (size_t newNumChannels, size_t newFactor,
-                                        FilterType newType, bool isMaximumQuality)
-    : numChannels (newNumChannels)
+                                        FilterType newType, bool isMaximumQuality,
+                                        bool useIntegerLatency)
+    : numChannels (newNumChannels), shouldUseIntegerLatency (useIntegerLatency)
 {
     jassert (isPositiveAndBelow (newFactor, 5) && numChannels > 0);
 
@@ -561,8 +561,8 @@ Oversampling<SampleType>::Oversampling (size_t newNumChannels, size_t newFactor,
             auto gaindBFactorDown = (isMaximumQuality ? 10.0f  : 8.0f);
 
             addOversamplingStage (FilterType::filterHalfBandPolyphaseIIR,
-                                  twUp, gaindBStartUp + gaindBFactorUp * n,
-                                  twDown, gaindBStartDown + gaindBFactorDown * n);
+                                  twUp, gaindBStartUp + gaindBFactorUp * (float) n,
+                                  twDown, gaindBStartDown + gaindBFactorDown * (float) n);
         }
     }
     else if (newType == FilterType::filterHalfBandFIREquiripple)
@@ -578,8 +578,8 @@ Oversampling<SampleType>::Oversampling (size_t newNumChannels, size_t newFactor,
             auto gaindBFactorDown = (isMaximumQuality ? 10.0f  : 8.0f);
 
             addOversamplingStage (FilterType::filterHalfBandFIREquiripple,
-                                  twUp, gaindBStartUp + gaindBFactorUp * n,
-                                  twDown, gaindBStartDown + gaindBFactorDown * n);
+                                  twUp, gaindBStartUp + gaindBFactorUp * (float) n,
+                                  twDown, gaindBStartDown + gaindBFactorDown * (float) n);
         }
     }
 }
@@ -629,7 +629,20 @@ void Oversampling<SampleType>::clearOversamplingStages()
 
 //==============================================================================
 template <typename SampleType>
-SampleType Oversampling<SampleType>::getLatencyInSamples() noexcept
+void Oversampling<SampleType>::setUsingIntegerLatency (bool useIntegerLatency) noexcept
+{
+    shouldUseIntegerLatency = useIntegerLatency;
+}
+
+template <typename SampleType>
+SampleType Oversampling<SampleType>::getLatencyInSamples() const noexcept
+{
+    auto latency = getUncompensatedLatency();
+    return shouldUseIntegerLatency ? latency + fractionalDelay : latency;
+}
+
+template <typename SampleType>
+SampleType Oversampling<SampleType>::getUncompensatedLatency() const noexcept
 {
     auto latency = static_cast<SampleType> (0);
     size_t order = 1;
@@ -644,7 +657,7 @@ SampleType Oversampling<SampleType>::getLatencyInSamples() noexcept
 }
 
 template <typename SampleType>
-size_t Oversampling<SampleType>::getOversamplingFactor() noexcept
+size_t Oversampling<SampleType>::getOversamplingFactor() const noexcept
 {
     return factorOversampling;
 }
@@ -662,6 +675,10 @@ void Oversampling<SampleType>::initProcessing (size_t maximumNumberOfSamplesBefo
         currentNumSamples *= stage->factor;
     }
 
+    ProcessSpec spec = { 0.0, (uint32) maximumNumberOfSamplesBeforeOversampling, (uint32) numChannels };
+    delay.prepare (spec);
+    updateDelayLine();
+
     isReady = true;
     reset();
 }
@@ -674,6 +691,8 @@ void Oversampling<SampleType>::reset() noexcept
     if (isReady)
         for (auto* stage : stages)
            stage->reset();
+
+    delay.reset();
 }
 
 template <typename SampleType>
@@ -708,11 +727,11 @@ void Oversampling<SampleType>::processSamplesDown (AudioBlock<SampleType>& outpu
     auto currentNumSamples = outputBlock.getNumSamples();
 
     for (int n = 0; n < stages.size() - 1; ++n)
-        currentNumSamples *= stages.getUnchecked(n)->factor;
+        currentNumSamples *= stages.getUnchecked (n)->factor;
 
     for (int n = stages.size() - 1; n > 0; --n)
     {
-        auto& stage = *stages.getUnchecked(n);
+        auto& stage = *stages.getUnchecked (n);
         auto audioBlock = stages.getUnchecked (n - 1)->getProcessedSamples (currentNumSamples);
         stage.processSamplesDown (audioBlock);
 
@@ -720,10 +739,29 @@ void Oversampling<SampleType>::processSamplesDown (AudioBlock<SampleType>& outpu
     }
 
     stages.getFirst()->processSamplesDown (outputBlock);
+
+    if (shouldUseIntegerLatency && fractionalDelay > static_cast<SampleType> (0.0))
+    {
+        auto context = ProcessContextReplacing<SampleType> (outputBlock);
+        delay.process (context);
+    }
+}
+
+template <typename SampleType>
+void Oversampling<SampleType>::updateDelayLine()
+{
+    auto latency = getUncompensatedLatency();
+    fractionalDelay = static_cast<SampleType> (1.0) - (latency - std::floor (latency));
+
+    if (approximatelyEqual (fractionalDelay, static_cast<SampleType> (1.0)))
+        fractionalDelay = static_cast<SampleType> (0.0);
+    else if (fractionalDelay < static_cast<SampleType> (0.618))
+        fractionalDelay += static_cast<SampleType> (1.0);
+
+    delay.setDelay (fractionalDelay);
 }
 
 template class Oversampling<float>;
 template class Oversampling<double>;
 
-} // namespace dsp
-} // namespace juce
+} // namespace juce::dsp

@@ -53,8 +53,9 @@ public:
 
     void createAudioDeviceTypes (juce::OwnedArray<juce::AudioIODeviceType>& list) override
     {
-        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_WASAPI (false));
-        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_WASAPI (true));
+        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_WASAPI (juce::WASAPIDeviceMode::shared));
+        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_WASAPI (juce::WASAPIDeviceMode::exclusive));
+        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_WASAPI (juce::WASAPIDeviceMode::sharedLowLatency));
         addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_DirectSound());
         addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_ASIO());
         addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_CoreAudio());

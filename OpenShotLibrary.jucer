@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <JUCERPROJECT id="iIUu5J" name="OpenShotAudio" projectType="dll" version="0.2.1"
-              bundleIdentifier="org.openshot.libopenshot-audio" jucerVersion="5.4.7"
-              companyName="OpenShot Studios, LLC" includeBinaryInAppConfig="0"
-              companyWebsite="http://www.openshot.org/" companyEmail="sales@openshot.org"
-              projectLineFeed="&#10;" reportAppUsage="0">
+              bundleIdentifier="org.openshot.libopenshot-audio" companyName="OpenShot Studios, LLC"
+              includeBinaryInAppConfig="0" companyWebsite="http://www.openshot.org/"
+              companyEmail="sales@openshot.org" projectLineFeed="&#10;" reportAppUsage="0"
+              displaySplashScreen="1" jucerFormatVersion="1">
   <EXPORTFORMATS>
     <LINUX_MAKE targetFolder="build">
       <CONFIGURATIONS>
@@ -39,7 +39,7 @@
   <JUCEOPTIONS JUCE_USE_FLAC="0" JUCE_USE_OGGVORBIS="0" JUCE_USE_MP3AUDIOFORMAT="0"
                JUCE_USE_WINDOWS_MEDIA_FORMAT="0" JUCE_USE_COREIMAGE_LOADER="0"
                JUCE_USE_DIRECTWRITE="0" JUCE_WEB_BROWSER="0" JUCE_INCLUDE_ZLIB_CODE="0"
-               JUCE_DONT_AUTOLINK_TO_WIN32_LIBRARIES="1" JUCE_USE_CURL="0"/>
+               JUCE_DONT_AUTOLINK_TO_WIN32_LIBRARIES="1" JUCE_USE_CURL="0" JUCE_ASIO="1"/>
   <LIVE_SETTINGS>
     <LINUX buildEnabled="1"/>
   </LIVE_SETTINGS>

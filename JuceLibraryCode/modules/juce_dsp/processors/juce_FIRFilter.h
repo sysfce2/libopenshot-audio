@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2022 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 7 End-User License
+   Agreement and JUCE Privacy Policy.
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-7-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -24,15 +23,10 @@
   ==============================================================================
 */
 
-namespace juce
-{
-namespace dsp
-{
-
 /**
     Classes for FIR filter processing.
 */
-namespace FIR
+namespace juce::dsp::FIR
 {
     template <typename NumericType>
     struct Coefficients;
@@ -77,12 +71,11 @@ namespace FIR
 
         //==============================================================================
         /** Prepare this filter for processing. */
-        inline void prepare (const ProcessSpec& spec) noexcept
+        inline void prepare ([[maybe_unused]] const ProcessSpec& spec) noexcept
         {
             // This class can only process mono signals. Use the ProcessorDuplicator class
             // to apply this filter on a multi-channel audio stream.
             jassert (spec.numChannels == 1);
-            ignoreUnused (spec);
             reset();
         }
 
@@ -124,7 +117,7 @@ namespace FIR
         template <typename ProcessContext>
         void process (const ProcessContext& context) noexcept
         {
-            static_assert (std::is_same<typename ProcessContext::SampleType, SampleType>::value,
+            static_assert (std::is_same_v<typename ProcessContext::SampleType, SampleType>,
                            "The sample-type of the FIR filter must match the sample-type supplied to this process callback");
             check();
 
@@ -281,7 +274,5 @@ namespace FIR
         */
         Array<NumericType> coefficients;
     };
-}
 
-} // namespace dsp
-} // namespace juce
+} // namespace juce::dsp::FIR
