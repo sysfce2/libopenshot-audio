@@ -29,16 +29,18 @@ public:
     explicit PlatformTimer (PlatformTimerListener& ptl)
         : listener { ptl } {}
 
-    void startTimer (int newIntervalMs)
+    void startTimer(int newIntervalMs)
     {
-        jassert (newIntervalMs > 0);
+        jassert(newIntervalMs > 0);
 
-        const auto callback = [] (UINT, UINT, DWORD_PTR context, DWORD_PTR, DWORD_PTR)
+        // Define the callback with __stdcall explicitly
+        static void __stdcall timerCallback(UINT, UINT, DWORD_PTR context, DWORD_PTR, DWORD_PTR)
         {
-            reinterpret_cast<PlatformTimerListener*> (context)->onTimerExpired();
-        };
+            reinterpret_cast<PlatformTimerListener*>(context)->onTimerExpired();
+        }
 
-        timerId = timeSetEvent ((UINT) newIntervalMs, 1, callback, (DWORD_PTR) &listener, TIME_PERIODIC | TIME_CALLBACK_FUNCTION);
+        // Use the explicitly defined callback
+        timerId = timeSetEvent((UINT)newIntervalMs, 1, timerCallback, (DWORD_PTR)&listener, TIME_PERIODIC | TIME_CALLBACK_FUNCTION);
         intervalMs = timerId != 0 ? newIntervalMs : 0;
     }
 
