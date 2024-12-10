@@ -99,7 +99,7 @@ trigger-pipeline:
   stage: trigger-libopenshot
   script:
     - "curl -X POST -F token=$LIBOPENSHOT_PIPELINE_TOKEN -F ref=$CI_COMMIT_REF_NAME http://gitlab.openshot.org/api/v4/projects/1/trigger/pipeline"
-  when: always
+  when: on_success
   dependencies: []
   except:
   - tags
