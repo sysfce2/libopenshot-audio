@@ -245,6 +245,7 @@ if(APPLE)
     "-framework AudioToolbox"
     "-framework QuartzCore"
     "-framework Accelerate"
+    "-framework Security"
     "-lobjc"
   )
   target_compile_options(openshot-audio PRIVATE
