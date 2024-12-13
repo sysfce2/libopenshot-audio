@@ -43,6 +43,11 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 set(PROJECT_VERSION_FULL "0.3.3")
 set(PROJECT_SO_VERSION 9)
 
+#### Set C++ standard level
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 # Remove the dash and anything following, to get the #.#.# version for project()
 string(REGEX REPLACE "\-.*$" "" VERSION_NUM "${PROJECT_VERSION_FULL}")
 
@@ -240,6 +245,7 @@ if(APPLE)
     "-framework AudioToolbox"
     "-framework QuartzCore"
     "-framework Accelerate"
+    "-framework Security"
     "-lobjc"
   )
   target_compile_options(openshot-audio PRIVATE

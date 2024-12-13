@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2022 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 7 End-User License
+   Agreement and JUCE Privacy Policy.
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-7-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -24,29 +23,31 @@
   ==============================================================================
 */
 
-namespace juce
-{
-namespace dsp
-{
-
 /**
     Classes for state variable filter processing.
 */
-namespace StateVariableFilter
+namespace juce::dsp::StateVariableFilter
 {
     template <typename NumericType>
     struct Parameters;
 
     /**
         An IIR filter that can perform low, band and high-pass filtering on an audio
-        signal, with 12 dB of attenuation / octave, using a TPT structure, designed
+        signal, with 12 dB of attenuation per octave, using a TPT structure, designed
         for fast modulation (see Vadim Zavalishin's documentation about TPT
         structures for more information). Its behaviour is based on the analog
         state variable filter circuit.
 
-        Note: The bandpass here is not the one in the RBJ CookBook, its gain can be
+        Note: The bandpass here is not the one in the RBJ CookBook as its gain can be
         higher than 0 dB. For the classic 0 dB bandpass, we need to multiply the
-        result with R2
+        result by R2.
+
+        Note 2: Using this class prevents some loud audio artefacts commonly encountered when
+        changing the cutoff frequency using other filter simulation structures and IIR
+        filter classes. However, this class may still require additional smoothing for
+        cutoff frequency changes.
+
+        see IIRFilter, SmoothedValue
 
         @tags{DSP}
     */
@@ -64,10 +65,17 @@ namespace StateVariableFilter
         using ParametersPtr = typename Parameters<NumericType>::Ptr;
 
         //==============================================================================
+       #ifndef DOXYGEN
         /** Creates a filter with default parameters. */
-        Filter()                               : parameters (new Parameters<NumericType>) { reset(); }
+        [[deprecated ("The classes in the StateVariableFilter namespace are deprecated. you should "
+                     "use the equivalent functionality in the StateVariableTPTFilter class.")]]
+        Filter() : parameters (new Parameters<NumericType>) { reset(); }
 
+        /** Creates a filter using some parameters. */
+        [[deprecated ("The classes in the StateVariableFilter namespace are deprecated. you should "
+                     "use the equivalent functionality in the StateVariableTPTFilter class.")]]
         Filter (ParametersPtr parametersToUse) : parameters (std::move (parametersToUse)) { reset(); }
+       #endif
 
         /** Creates a copy of another filter. */
         Filter (const Filter&) = default;
@@ -97,7 +105,7 @@ namespace StateVariableFilter
         template <typename ProcessContext>
         void process (const ProcessContext& context) noexcept
         {
-            static_assert (std::is_same<typename ProcessContext::SampleType, SampleType>::value,
+            static_assert (std::is_same_v<typename ProcessContext::SampleType, SampleType>,
                            "The sample-type of the filter must match the sample-type supplied to this process callback");
 
             if (context.isBypassed)
@@ -145,7 +153,10 @@ namespace StateVariableFilter
             for (size_t i = 0 ; i < n; ++i)
                 output[i] = processLoop<isBypassed, type> (input[i], state);
 
+           #if JUCE_DSP_ENABLE_SNAP_TO_ZERO
             snapToZero();
+           #endif
+
             *parameters = state;
         }
 
@@ -181,6 +192,13 @@ namespace StateVariableFilter
         JUCE_LEAK_DETECTOR (Filter)
     };
 
+    enum class StateVariableFilterType
+    {
+        lowPass,
+        bandPass,
+        highPass
+    };
+
     //==============================================================================
     /**
         Structure used for the state variable filter parameters.
@@ -191,12 +209,7 @@ namespace StateVariableFilter
     struct Parameters  : public ProcessorState
     {
         //==============================================================================
-        enum class Type
-        {
-            lowPass,
-            bandPass,
-            highPass
-        };
+        using Type = StateVariableFilterType;
 
         //==============================================================================
         /** The type of the IIR filter */
@@ -206,7 +219,7 @@ namespace StateVariableFilter
 
             Note: The bandwidth of the resonance increases with the value of the
             parameter. To have a standard 12 dB/octave filter, the value must be set
-            at 1 / sqrt(2).
+            at 1 / sqrt (2).
         */
         void setCutOffFrequency (double sampleRate, NumericType frequency,
                                  NumericType resonance = static_cast<NumericType> (1.0 / MathConstants<double>::sqrt2)) noexcept
@@ -236,7 +249,5 @@ namespace StateVariableFilter
         NumericType R2  = static_cast<NumericType> (MathConstants<double>::sqrt2);
         NumericType h   = static_cast<NumericType> (1.0 / (1.0 + R2 * g + g * g));
     };
-}
 
-} // namespace dsp
-} // namespace juce
+} // namespace juce::dsp::StateVariableFilter

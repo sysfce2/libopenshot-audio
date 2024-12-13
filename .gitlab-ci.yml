@@ -34,7 +34,7 @@ mac-builder:
     - build/install-x64/*
   script:
     - mkdir -p build
-    - cmake -B build -S . -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++" -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -D"CMAKE_INSTALL_PREFIX:PATH=build/install-x64" -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -D"CMAKE_BUILD_TYPE:STRING=Release" -D"CMAKE_OSX_SYSROOT=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk" -D"CMAKE_OSX_DEPLOYMENT_TARGET=10.9"
+    - cmake -B build -S . -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++" -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -D"CMAKE_INSTALL_PREFIX:PATH=build/install-x64" -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -D"CMAKE_BUILD_TYPE:STRING=Release" -D"CMAKE_OSX_SYSROOT=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk" -D"CMAKE_OSX_DEPLOYMENT_TARGET=10.9"
     - cmake --build build -j 9
     - cmake --install build
     - PROJECT_VERSION=$(grep -E '^set\(PROJECT_VERSION_FULL "(.*)' CMakeLists.txt | awk '{print $2}' | tr -d '")')
@@ -99,7 +99,7 @@ trigger-pipeline:
   stage: trigger-libopenshot
   script:
     - "curl -X POST -F token=$LIBOPENSHOT_PIPELINE_TOKEN -F ref=$CI_COMMIT_REF_NAME http://gitlab.openshot.org/api/v4/projects/1/trigger/pipeline"
-  when: always
+  when: on_success
   dependencies: []
   except:
   - tags
